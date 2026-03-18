@@ -143,51 +143,56 @@ async function showMainMenu() {
   return await createClaudeConfig({ setupFromMenu: true });
 }
 
-// Cache file path for component data
-const CACHE_FILE = path.join(require('os').homedir(), '.claude-code-templates-cache.json');
+// Auth token file for Entra/API authentication
+const AUTH_TOKEN_FILE = path.join(require('os').homedir(), '.claude-code-templates-auth.json');
 
-function clearComponentCache() {
+function getStoredAuth() {
   try {
-    if (fs.existsSync(CACHE_FILE)) {
-      fs.removeSync(CACHE_FILE);
-      console.log(chalk.green('✅ Local component cache cleared'));
+    if (fs.existsSync(AUTH_TOKEN_FILE)) {
+      const data = JSON.parse(fs.readFileSync(AUTH_TOKEN_FILE, 'utf8'));
+      // Check expiry
+      if (data.expiresAt && new Date(data.expiresAt) < new Date()) {
+        return { expired: true, data };
+      }
+      return { expired: false, data };
     }
-  } catch (e) {
-    // ignore
-  }
+  } catch (e) { /* ignore */ }
+  return null;
 }
 
-function showForceHint(reason = 'If components are stale or your token has expired') {
-  console.log(chalk.yellow(`\n💡 ${reason}, run with --force to refresh:`));
-  console.log(chalk.gray('   npx claude-code-templates@latest --force'));
-  console.log(chalk.gray('   # Or if installed locally:'));
+function clearAuth() {
+  try {
+    if (fs.existsSync(AUTH_TOKEN_FILE)) {
+      fs.removeSync(AUTH_TOKEN_FILE);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function showForceHint(reason = 'Your Entra token may have expired') {
+  console.log(chalk.yellow(`\n⚠️  ${reason}`));
+  console.log(chalk.cyan('   Run with --force to clear the expired token and log in again:'));
+  console.log(chalk.white('   npx claude-code-templates@latest --force'));
   console.log(chalk.gray('   cct --force\n'));
-}
-
-function showLocalHint() {
-  console.log(chalk.blue('\n💡 For faster offline installs, install the package globally:'));
-  console.log(chalk.gray('   npm install -g claude-code-templates'));
-  console.log(chalk.gray('   cct --local   # uses local copy, no network needed\n'));
 }
 
 async function createClaudeConfig(options = {}) {
   const targetDir = options.directory || process.cwd();
 
-  // Handle --force: clear cache then continue normally
+  // Handle --force: clear stored Entra auth token and force re-login
   if (options.force) {
-    clearComponentCache();
-    console.log(chalk.cyan('🔄 Force refresh enabled — fetching latest components from remote...\n'));
-  }
-
-  // Handle --local: use bundled components.json, skip remote fetch
-  if (options.local) {
-    const localComponents = path.join(__dirname, '../../docs/components.json');
-    if (!fs.existsSync(localComponents)) {
-      console.log(chalk.red('❌ Local components not found. Install the package globally first:'));
-      console.log(chalk.gray('   npm install -g claude-code-templates'));
+    const auth = getStoredAuth();
+    if (auth) {
+      clearAuth();
+      console.log(chalk.green('✅ Expired auth token cleared'));
+    }
+    console.log(chalk.cyan('🔄 Force refresh — you may be prompted to log in again\n'));
+  } else {
+    // Check if stored auth is expired — prompt user to use --force
+    const auth = getStoredAuth();
+    if (auth && auth.expired) {
+      showForceHint('Your Entra login token has expired.');
       process.exit(1);
     }
-    console.log(chalk.green('📦 Using local components (offline mode)\n'));
   }
 
   // Validate --tunnel usage
@@ -1687,26 +1692,56 @@ async function installIndividualSkill(skillName, targetDir, options) {
       return false;
     }
 
+    // Determine install location: --local = current folder, otherwise ask (or default global)
+    let installBase = targetDir; // default = current project
+    if (!options.local && !options.silent) {
+      const { location } = await inquirer.prompt([{
+        type: 'list',
+        name: 'location',
+        message: `Where should skill "${skillBaseName}" be installed?`,
+        choices: [
+          { name: `📁 Current folder (${path.relative(process.cwd(), targetDir) || '.'})  — this project only`, value: 'local' },
+          { name: `🌍 Global (~/.claude/skills/)  — available in all projects`, value: 'global' },
+        ],
+        default: 'local',
+      }]);
+      if (location === 'global') {
+        installBase = require('os').homedir();
+      }
+    } else if (options.local) {
+      // --local explicitly set: always use current directory
+      installBase = targetDir;
+    }
+
     // Create .claude/skills/skill-name directory (Anthropic standard structure)
-    const skillsDir = path.join(targetDir, '.claude', 'skills');
+    const skillsDir = path.join(installBase, '.claude', 'skills');
     await fs.ensureDir(skillsDir);
 
     // Write all downloaded files
     for (const [filePath, fileData] of Object.entries(downloadedFiles)) {
-      const fullPath = path.join(targetDir, filePath);
-      await fs.ensureDir(path.dirname(fullPath));
-      await fs.writeFile(fullPath, fileData.content, 'utf8');
+      // Remap paths under .claude/skills/ to use installBase
+      const remappedPath = filePath.startsWith('.claude/skills/')
+        ? path.join(installBase, filePath)
+        : path.join(installBase, filePath);
+      await fs.ensureDir(path.dirname(remappedPath));
+      await fs.writeFile(remappedPath, fileData.content, 'utf8');
 
       if (fileData.executable) {
-        await fs.chmod(fullPath, '755');
+        await fs.chmod(remappedPath, '755');
       }
     }
 
     const targetFile = path.join(skillsDir, skillBaseName, 'SKILL.md');
+    const installLabel = installBase === require('os').homedir()
+      ? `~/.claude/skills/${skillBaseName}/ (global)`
+      : `.claude/skills/${skillBaseName}/ (local)`;
 
     if (!options.silent) {
       console.log(chalk.green(`✅ Skill "${skillName}" installed successfully!`));
-      console.log(chalk.cyan(`📁 Installed to: ${path.relative(targetDir, targetFile)}`));
+      console.log(chalk.cyan(`📁 Installed to: ${installLabel}`));
+      if (installBase !== require('os').homedir()) {
+        console.log(chalk.gray('   💡 Use --local to always install here, or omit --local to choose each time'));
+      }
       console.log(chalk.cyan(`📄 Total files downloaded: ${Object.keys(downloadedFiles).length}`));
       console.log(chalk.cyan(`📦 Downloaded from: ${githubApiUrl}`));
     }
