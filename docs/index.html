@@ -515,6 +515,32 @@
                         <button class="copy-btn" onclick="copyToClipboard('npx claude-code-templates@latest --plugins')">Copy</button>
                     </div>
                 </div>
+                <div class="command-card">
+                    <h3>🔄 Force Refresh</h3>
+                    <p>Clears local component cache and re-downloads the latest components from remote. Use when your token has expired, components are stale, or installs are failing.</p>
+                    <div class="command-line">
+                        <span class="prompt">$</span>
+                        <code class="command">npx claude-code-templates@latest --force</code>
+                        <button class="copy-btn" onclick="copyToClipboard('npx claude-code-templates@latest --force')">Copy</button>
+                    </div>
+                    <div class="command-note" style="margin-top:8px;font-size:0.85em;color:#f97316;">
+                        💡 Token expired? Always run with <strong>--force</strong> to refresh authentication and component data.
+                    </div>
+                </div>
+                <div class="command-card">
+                    <h3>📦 Local Mode</h3>
+                    <p>Use the locally installed package instead of fetching from remote. Faster installs, works fully offline. Requires the package to be installed globally first.</p>
+                    <div class="command-line">
+                        <span class="prompt">$</span>
+                        <code class="command">npm install -g claude-code-templates</code>
+                        <button class="copy-btn" onclick="copyToClipboard('npm install -g claude-code-templates')">Copy</button>
+                    </div>
+                    <div class="command-line" style="margin-top:8px;">
+                        <span class="prompt">$</span>
+                        <code class="command">cct --local</code>
+                        <button class="copy-btn" onclick="copyToClipboard('cct --local')">Copy</button>
+                    </div>
+                </div>
             </div>
         </section>
     </main>

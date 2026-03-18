@@ -63,6 +63,8 @@ program
   .option('--teams', 'launch Agent Teams Dashboard to review multi-agent collaboration sessions')
   .option('--2025', 'launch 2025 Year in Review dashboard (showcase your Claude Code usage statistics)')
   .option('--tunnel', 'enable Cloudflare Tunnel for remote access (use with --analytics or --chats)')
+  .option('--force', 'force refresh — clears local component cache and re-downloads from remote. Use when token is expired or components are stale')
+  .option('--local', 'use locally installed package instead of remote (faster, works offline). Requires: npm install -g claude-code-templates')
   .option('--verbose', 'enable verbose logging for debugging and development')
   .option('--health-check, --health, --check, --verify', 'run comprehensive health check to verify Claude Code setup')
   .option('--agent <agent>', 'install specific agent component (supports comma-separated values)')

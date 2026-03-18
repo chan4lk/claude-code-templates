@@ -143,9 +143,53 @@ async function showMainMenu() {
   return await createClaudeConfig({ setupFromMenu: true });
 }
 
+// Cache file path for component data
+const CACHE_FILE = path.join(require('os').homedir(), '.claude-code-templates-cache.json');
+
+function clearComponentCache() {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      fs.removeSync(CACHE_FILE);
+      console.log(chalk.green('✅ Local component cache cleared'));
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function showForceHint(reason = 'If components are stale or your token has expired') {
+  console.log(chalk.yellow(`\n💡 ${reason}, run with --force to refresh:`));
+  console.log(chalk.gray('   npx claude-code-templates@latest --force'));
+  console.log(chalk.gray('   # Or if installed locally:'));
+  console.log(chalk.gray('   cct --force\n'));
+}
+
+function showLocalHint() {
+  console.log(chalk.blue('\n💡 For faster offline installs, install the package globally:'));
+  console.log(chalk.gray('   npm install -g claude-code-templates'));
+  console.log(chalk.gray('   cct --local   # uses local copy, no network needed\n'));
+}
+
 async function createClaudeConfig(options = {}) {
   const targetDir = options.directory || process.cwd();
-  
+
+  // Handle --force: clear cache then continue normally
+  if (options.force) {
+    clearComponentCache();
+    console.log(chalk.cyan('🔄 Force refresh enabled — fetching latest components from remote...\n'));
+  }
+
+  // Handle --local: use bundled components.json, skip remote fetch
+  if (options.local) {
+    const localComponents = path.join(__dirname, '../../docs/components.json');
+    if (!fs.existsSync(localComponents)) {
+      console.log(chalk.red('❌ Local components not found. Install the package globally first:'));
+      console.log(chalk.gray('   npm install -g claude-code-templates'));
+      process.exit(1);
+    }
+    console.log(chalk.green('📦 Using local components (offline mode)\n'));
+  }
+
   // Validate --tunnel usage
   if (options.tunnel && !options.analytics && !options.chats && !options.agents && !options.chatsMobile && !options['2025']) {
     console.log(chalk.red('❌ Error: --tunnel can only be used with --analytics, --chats, --2025, or --chats-mobile'));
@@ -1481,9 +1525,11 @@ async function getAvailableAgentsFromGitHub() {
       // Check for rate limit error
       if (response.status === 403) {
         const responseText = await response.text();
-        if (responseText.includes('rate limit')) {
-          console.log(chalk.red('❌ GitHub API rate limit exceeded'));
-          console.log(chalk.yellow('💡 Install locally with: npm install -g claude-code-templates'));
+        if (responseText.includes('rate limit') || responseText.includes('token') || responseText.includes('expired')) {
+          console.log(chalk.red('❌ GitHub API rate limit exceeded or token expired'));
+          showForceHint('Your token may have expired or the rate limit was hit');
+          showLocalHint();
+          console.log(chalk.yellow('💡 Or install locally with: npm install -g claude-code-templates'));
           
           // Return comprehensive fallback list
           return [
