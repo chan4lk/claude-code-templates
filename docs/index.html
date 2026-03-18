@@ -515,6 +515,30 @@
                         <button class="copy-btn" onclick="copyToClipboard('npx claude-code-templates@latest --plugins')">Copy</button>
                     </div>
                 </div>
+                <div class="command-card">
+                    <h3>🔄 Force Re-login (--force)</h3>
+                    <p>Clears your expired Entra / auth token and forces a fresh login. Use this whenever you see authentication errors or your session has expired.</p>
+                    <div class="command-line">
+                        <span class="prompt">$</span>
+                        <code class="command">npx claude-code-templates@latest --force</code>
+                        <button class="copy-btn" onclick="copyToClipboard('npx claude-code-templates@latest --force')">Copy</button>
+                    </div>
+                    <div class="command-note" style="margin-top:8px;font-size:0.85em;color:#f97316;">
+                        ⚠️ <strong>Entra token expired?</strong> The CLI will tell you to run <code>--force</code>. It clears the cached token so you can log in again.
+                    </div>
+                </div>
+                <div class="command-card">
+                    <h3>📁 Install to Current Folder (--local)</h3>
+                    <p>When installing skills, use <code>--local</code> to install into your <strong>current project folder</strong> (<code>.claude/skills/</code>) instead of the global <code>~/.claude/skills/</code> location. Without this flag, you'll be asked each time.</p>
+                    <div class="command-line">
+                        <span class="prompt">$</span>
+                        <code class="command">npx claude-code-templates@latest --skill my-skill --local</code>
+                        <button class="copy-btn" onclick="copyToClipboard('npx claude-code-templates@latest --skill my-skill --local')">Copy</button>
+                    </div>
+                    <div class="command-note" style="margin-top:8px;font-size:0.85em;color:#64748b;">
+                        Without <code>--local</code>: prompted to choose between current folder or global (~/.claude/skills/)
+                    </div>
+                </div>
             </div>
         </section>
     </main>
